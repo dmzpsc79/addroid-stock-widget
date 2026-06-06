@@ -80,7 +80,7 @@ public class NaverFinanceClient {
             up = "1".equals(code) || "2".equals(code);
         }
 
-        return new StockQuote(item, price, change, changeRate, high, low, volume, up, null);
+        return new StockQuote(item, price, change, changeRate, high, low, volume, up, null, StockQuote.SOURCE_NAVER);
     }
 
     private static StockQuote fetchYahooQuote(StockItem item) {
@@ -105,11 +105,11 @@ public class NaverFinanceClient {
             long low = (long) meta.optDouble("regularMarketDayLow", 0);
             long volume = meta.optLong("regularMarketVolume", 0);
 
-            return new StockQuote(item, price, change, changeRate, high, low, volume, up, null);
+            return new StockQuote(item, price, change, changeRate, high, low, volume, up, null, StockQuote.SOURCE_YAHOO);
         } catch (Exception e) {
             String msg = e.getMessage();
             return new StockQuote(item, 0, 0, 0, 0, 0, 0, true,
-                    msg != null ? msg : "주가 조회에 실패했습니다.");
+                    msg != null ? msg : "주가 조회에 실패했습니다.", null);
         }
     }
 

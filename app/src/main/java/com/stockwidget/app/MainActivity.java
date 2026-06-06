@@ -135,7 +135,8 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     renderQuotes(finalQuotes);
                     String updated = new SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(new Date());
-                    String suffix = marketOpen ? "갱신" : "마감 정보";
+                    boolean hasDelayed = hasDelayedQuote(finalQuotes);
+                    String suffix = marketOpen ? (hasDelayed ? "갱신 (Yahoo 15분 지연)" : "갱신") : "마감 정보";
                     statusText.setText(marketLabel + " · " + updated + " " + suffix);
                     statusText.setTextColor(MUTED);
                     isRefreshing = false;
@@ -150,6 +151,13 @@ public class MainActivity extends Activity {
                 });
             }
         }).start();
+    }
+
+    private boolean hasDelayedQuote(List<StockQuote> quotes) {
+        for (StockQuote q : quotes) {
+            if (q.isDelayed()) return true;
+        }
+        return false;
     }
 
     private void renderCachedOrPausedRows() {
