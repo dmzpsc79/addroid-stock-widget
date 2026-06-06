@@ -70,11 +70,6 @@ public class StockWidgetRemoteViewsService extends RemoteViewsService {
         }
 
         @Override
-        public int getItemViewType(int position) {
-            return quotes.isEmpty() ? 1 : 0;
-        }
-
-        @Override
         public long getItemId(int position) {
             if (!quotes.isEmpty() && position < quotes.size()) {
                 return quotes.get(position).item.code.hashCode();

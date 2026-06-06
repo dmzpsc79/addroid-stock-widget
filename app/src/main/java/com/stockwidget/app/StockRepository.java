@@ -142,12 +142,11 @@ public class StockRepository {
                 continue;
             }
             String source = obj.optString("source", "");
-            if (!"NAVER".equals(source) && !"KIS".equals(source)) {
+            if (!"NAVER".equals(source) && !"KIS".equals(source) && !"YAHOO".equals(source)) {
                 continue;
             }
 
             String error = obj.optString("error", "");
-            String source = obj.optString("source", StockQuote.SOURCE_NAVER);
             return new StockQuote(
                     stock,
                     obj.optLong("price", 0),
@@ -158,7 +157,7 @@ public class StockRepository {
                     obj.optLong("volume", 0),
                     obj.optBoolean("up", true),
                     error.isEmpty() ? null : error,
-                    source
+                    source.isEmpty() ? StockQuote.SOURCE_NAVER : source
             );
         }
         return null;
