@@ -1,0 +1,28 @@
+# Android
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Android app build artifacts
+app/build/
+
+# Gradle
+.gradle/
+build/
+
+# Build tools cache
+.build-tools/
+
+# Keystore files
+*.jks
+*.keystore
+
+# Google services
+google-services.json
