@@ -36,12 +36,12 @@ public class WidgetUpdater {
             if (!MarketHours.isRegularMarketOpen()) {
                 List<StockQuote> quotes = StockRepository.loadQuoteCache(context, stocks);
                 if (MarketHours.isAfterRegularMarketClose() || quotes.isEmpty()) {
-                    quotes = KisFinanceClient.fetchQuotes(context, stocks);
-                    if (KisFinanceClient.hasSuccessfulQuote(quotes)) {
+                    quotes = NaverFinanceClient.fetchQuotes(stocks);
+                    if (NaverFinanceClient.hasSuccessfulQuote(quotes)) {
                         StockRepository.saveQuoteCache(context, quotes);
                     }
                 }
-                if (!KisFinanceClient.hasSuccessfulQuote(quotes)) {
+                if (!NaverFinanceClient.hasSuccessfulQuote(quotes)) {
                     quotes = StockRepository.loadQuoteCache(context, stocks);
                 }
                 if (!quotes.isEmpty()) {
@@ -54,12 +54,12 @@ public class WidgetUpdater {
                 return;
             }
 
-            List<StockQuote> quotes = KisFinanceClient.fetchQuotes(context, stocks);
-            if (KisFinanceClient.hasSuccessfulQuote(quotes)) {
+            List<StockQuote> quotes = NaverFinanceClient.fetchQuotes(stocks);
+            if (NaverFinanceClient.hasSuccessfulQuote(quotes)) {
                 StockRepository.saveQuoteCache(context, quotes);
             }
             String updated = new SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(new Date());
-            updateWidgetShell(context, manager, ids, "장중", updated + " 한투 갱신");
+            updateWidgetShell(context, manager, ids, "장중", updated + " 갱신");
         } finally {
             IS_UPDATING.set(false);
         }

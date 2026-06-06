@@ -65,7 +65,6 @@ public class SettingsActivity extends Activity {
         scroll.addView(root);
 
         buildHeader(root);
-        root.addView(new KisSettingsView(this));
         buildStockListSection(root);
         buildAddStockSection(root);
         buildRefreshIntervalSection(root);

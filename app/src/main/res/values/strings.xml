@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">주식 위젯</string>
-    <string name="widget_description">한국투자증권 Open API 주가를 보여주는 홈 화면 위젯</string>
+    <string name="widget_description">API 키 없이 실시간 국내 주가를 보여주는 홈 화면 위젯</string>
 </resources>

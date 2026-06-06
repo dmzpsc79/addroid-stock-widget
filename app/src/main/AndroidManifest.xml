@@ -4,9 +4,15 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <permission
+        android:name="com.stockwidget.app.permission.REFRESH"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="com.stockwidget.app.permission.REFRESH" />
+
     <application
         android:allowBackup="false"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="주식 위젯"
         android:theme="@style/AppTheme">
 
@@ -31,7 +37,8 @@
         <receiver
             android:name=".StockWidgetProvider"
             android:exported="true"
-            android:label="주식 위젯">
+            android:label="주식 위젯"
+            android:permission="com.stockwidget.app.permission.REFRESH">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.stockwidget.app.REFRESH_WIDGET" />

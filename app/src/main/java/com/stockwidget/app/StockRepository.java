@@ -14,6 +14,8 @@ public class StockRepository {
     private static final String KEY_STOCKS = "stocks";
     private static final String KEY_REFRESH_INTERVAL_MINUTES = "refresh_interval_minutes";
     private static final String KEY_QUOTE_CACHE = "quote_cache";
+    private static final String KEY_QUOTE_CACHE_TIME = "quote_cache_time";
+    private static final long CACHE_MAX_AGE_MS = 8 * 60 * 60 * 1000L; // 8시간
 
     public static List<StockItem> loadStocks(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
@@ -85,7 +87,7 @@ public class StockRepository {
                 obj.put("volume", quote.volume);
                 obj.put("up", quote.up);
                 obj.put("error", quote.error == null ? "" : quote.error);
-                obj.put("source", "KIS");
+                obj.put("source", quote.source != null ? quote.source : StockQuote.SOURCE_NAVER);
                 array.put(obj);
             } catch (Exception ignored) {
             }
@@ -94,13 +96,27 @@ public class StockRepository {
         context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
                 .edit()
                 .putString(KEY_QUOTE_CACHE, array.toString())
+                .putLong(KEY_QUOTE_CACHE_TIME, System.currentTimeMillis())
                 .apply();
+    }
+
+    public static long loadQuoteCacheAgeMs(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        long savedAt = prefs.getLong(KEY_QUOTE_CACHE_TIME, 0);
+        return savedAt == 0 ? Long.MAX_VALUE : System.currentTimeMillis() - savedAt;
+    }
+
+    public static boolean isQuoteCacheExpired(Context context) {
+        return loadQuoteCacheAgeMs(context) > CACHE_MAX_AGE_MS;
     }
 
     public static List<StockQuote> loadQuoteCache(Context context, List<StockItem> stocks) {
         SharedPreferences prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         String json = prefs.getString(KEY_QUOTE_CACHE, null);
         if (json == null || json.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        if (isQuoteCacheExpired(context)) {
             return new ArrayList<>();
         }
 
@@ -125,7 +141,8 @@ public class StockRepository {
             if (obj == null || !stock.code.equals(obj.optString("code", ""))) {
                 continue;
             }
-            if (!"KIS".equals(obj.optString("source", ""))) {
+            String source = obj.optString("source", "");
+            if (!"NAVER".equals(source) && !"KIS".equals(source) && !"YAHOO".equals(source)) {
                 continue;
             }
 
@@ -139,7 +156,8 @@ public class StockRepository {
                     obj.optLong("low", 0),
                     obj.optLong("volume", 0),
                     obj.optBoolean("up", true),
-                    error.isEmpty() ? null : error
+                    error.isEmpty() ? null : error,
+                    source.isEmpty() ? StockQuote.SOURCE_NAVER : source
             );
         }
         return null;

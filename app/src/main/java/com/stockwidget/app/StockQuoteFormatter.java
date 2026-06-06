@@ -3,7 +3,8 @@ package com.stockwidget.app;
 import java.text.DecimalFormat;
 
 public class StockQuoteFormatter {
-    private static final DecimalFormat RATE_FORMAT = new DecimalFormat("0.00");
+    private static final ThreadLocal<DecimalFormat> RATE_FORMAT =
+            ThreadLocal.withInitial(() -> new DecimalFormat("0.00"));
 
     public static String formatPrice(long value) {
         return String.format("%,d", value);
@@ -20,7 +21,7 @@ public class StockQuoteFormatter {
 
     public static String formatSignedRate(StockQuote quote) {
         String sign = quote.up ? "+" : "-";
-        return sign + RATE_FORMAT.format(quote.changeRate) + "%";
+        return sign + RATE_FORMAT.get().format(quote.changeRate) + "%";
     }
 
     public static String formatOptionalNumber(long value) {

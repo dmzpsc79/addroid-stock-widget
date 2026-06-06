@@ -30,7 +30,7 @@ public class MainActivity extends Activity {
     private LinearLayout quoteList;
     private TextView statusText;
     private final List<StockItem> stocks = new ArrayList<>();
-    private boolean isRefreshing = false;
+    private volatile boolean isRefreshing = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,8 +63,16 @@ public class MainActivity extends Activity {
         headerTop.setGravity(Gravity.CENTER_VERTICAL);
 
         LinearLayout titleBox = verticalBox();
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.BOTTOM);
         TextView title = text("주식 위젯", 22, TEXT, true);
-        titleBox.addView(title);
+        titleRow.addView(title);
+        String versionName = getVersionName();
+        TextView version = text("  " + versionName, 11, MUTED, false);
+        version.setPadding(0, 0, 0, dp(3));
+        titleRow.addView(version);
+        titleBox.addView(titleRow);
 
         statusText = text("대기 중", 12, MUTED, false);
         statusText.setPadding(0, dp(3), 0, 0);
@@ -116,14 +124,14 @@ public class MainActivity extends Activity {
 
         isRefreshing = true;
         String marketLabel = marketOpen ? "장중" : MarketHours.statusLabel();
-        statusText.setText(marketLabel + " · 한투 조회 중...");
+        statusText.setText(marketLabel + " · 조회 중...");
         statusText.setTextColor(ACCENT);
         quoteList.removeAllViews();
 
         new Thread(() -> {
             try {
-                List<StockQuote> quotes = KisFinanceClient.fetchQuotes(this, new ArrayList<>(stocks));
-                if (KisFinanceClient.hasSuccessfulQuote(quotes)) {
+                List<StockQuote> quotes = NaverFinanceClient.fetchQuotes(new ArrayList<>(stocks));
+                if (NaverFinanceClient.hasSuccessfulQuote(quotes)) {
                     StockRepository.saveQuoteCache(this, quotes);
                 } else {
                     List<StockQuote> cached = StockRepository.loadQuoteCache(this, stocks);
@@ -135,7 +143,8 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     renderQuotes(finalQuotes);
                     String updated = new SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(new Date());
-                    String suffix = marketOpen ? "한투 갱신" : "한투 마감 정보";
+                    boolean hasDelayed = hasDelayedQuote(finalQuotes);
+                    String suffix = marketOpen ? (hasDelayed ? "갱신 (Yahoo 15분 지연)" : "갱신") : "마감 정보";
                     statusText.setText(marketLabel + " · " + updated + " " + suffix);
                     statusText.setTextColor(MUTED);
                     isRefreshing = false;
@@ -150,6 +159,13 @@ public class MainActivity extends Activity {
                 });
             }
         }).start();
+    }
+
+    private boolean hasDelayedQuote(List<StockQuote> quotes) {
+        for (StockQuote q : quotes) {
+            if (q.isDelayed()) return true;
+        }
+        return false;
     }
 
     private void renderCachedOrPausedRows() {
@@ -355,6 +371,14 @@ public class MainActivity extends Activity {
         );
         params.setMargins(0, dp(6), 0, dp(6));
         parent.addView(child, params);
+    }
+
+    private String getVersionName() {
+        try {
+            return "v" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private int dp(int value) {
