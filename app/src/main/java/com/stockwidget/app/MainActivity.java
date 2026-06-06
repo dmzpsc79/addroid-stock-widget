@@ -2,12 +2,14 @@ package com.stockwidget.app;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -28,6 +30,7 @@ public class MainActivity extends Activity {
     private static final int LINE = Color.rgb(30, 41, 59);
 
     private LinearLayout quoteList;
+    private LinearLayout indexSection;
     private TextView statusText;
     private final List<StockItem> stocks = new ArrayList<>();
     private volatile boolean isRefreshing = false;
@@ -98,6 +101,10 @@ public class MainActivity extends Activity {
 
         addBlock(root, header);
 
+        // 지수 섹션
+        indexSection = verticalBox();
+        root.addView(indexSection);
+
         quoteList = verticalBox();
         root.addView(quoteList);
 
@@ -136,6 +143,8 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
+                // 지수 조회 (주가 조회와 병렬)
+                List<MarketIndex> indices = NaverIndexClient.fetchIndices();
                 List<StockQuote> quotes = NaverFinanceClient.fetchQuotes(new ArrayList<>(stocks));
                 if (NaverFinanceClient.hasSuccessfulQuote(quotes)) {
                     StockRepository.saveQuoteCache(this, quotes);
@@ -147,6 +156,7 @@ public class MainActivity extends Activity {
                 }
                 List<StockQuote> finalQuotes = quotes;
                 runOnUiThread(() -> {
+                    renderIndices(indices);
                     renderQuotes(finalQuotes);
                     String updated = new SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(new Date());
                     boolean hasDelayed = hasDelayedQuote(finalQuotes);
@@ -167,6 +177,90 @@ public class MainActivity extends Activity {
                 });
             }
         }).start();
+    }
+
+    private void renderIndices(List<MarketIndex> indices) {
+        indexSection.removeAllViews();
+        if (indices == null || indices.isEmpty()) return;
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, dp(2), 0, dp(6));
+
+        for (int i = 0; i < indices.size(); i++) {
+            MarketIndex idx = indices.get(i);
+            int color = idx.up ? RED : BLUE;
+
+            LinearLayout card = new LinearLayout(this);
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setPadding(dp(10), dp(8), dp(10), dp(8));
+            GradientDrawable cardBg = new GradientDrawable();
+            cardBg.setColor(Color.rgb(17, 24, 39));
+            cardBg.setCornerRadius(dp(10));
+            cardBg.setStroke(dp(1), Color.rgb(30, 41, 59));
+            card.setBackground(cardBg);
+
+            // 지수명 + 방향
+            LinearLayout nameRow = new LinearLayout(this);
+            nameRow.setOrientation(LinearLayout.HORIZONTAL);
+            nameRow.setGravity(Gravity.CENTER_VERTICAL);
+            TextView nameView = text(idx.name, 12, MUTED, false);
+            nameRow.addView(nameView);
+            TextView arrowView = text(idx.up ? " ▲" : " ▼", 11, color, true);
+            nameRow.addView(arrowView);
+            card.addView(nameRow);
+
+            // 지수값
+            TextView priceView = text(formatIndex(idx.price), 18, TEXT, true);
+            card.addView(priceView);
+
+            // 등락
+            String sign = idx.up ? "+" : "-";
+            TextView changeView = text(
+                    sign + formatIndex(idx.change) + "  " + sign + String.format("%.2f", idx.changeRate) + "%",
+                    12, color, false);
+            card.addView(changeView);
+
+            // 차트 이미지
+            if (!idx.chartUrl.isEmpty()) {
+                ImageView chartImg = new ImageView(this);
+                chartImg.setScaleType(ImageView.ScaleType.FIT_XY);
+                LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, dp(44));
+                imgParams.setMargins(0, dp(6), 0, 0);
+                card.addView(chartImg, imgParams);
+
+                // 백그라운드에서 이미지 로드
+                String chartUrl = idx.chartUrl;
+                new Thread(() -> {
+                    Bitmap bmp = NaverIndexClient.loadChart(chartUrl);
+                    if (bmp != null) {
+                        runOnUiThread(() -> chartImg.setImageBitmap(bmp));
+                    }
+                }).start();
+            }
+
+            LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            if (i < indices.size() - 1) cardParams.setMargins(0, 0, dp(6), 0);
+            row.addView(card, cardParams);
+        }
+        indexSection.addView(row);
+
+        // 구분선
+        View divider = new View(this);
+        divider.setBackgroundColor(LINE);
+        LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(1));
+        dp.setMargins(0, 0, 0, dp(6));
+        indexSection.addView(divider, dp);
+    }
+
+    private String formatIndex(double value) {
+        if (value >= 1000) {
+            return String.format("%,.2f", value);
+        }
+        return String.format("%.2f", value);
     }
 
     private boolean hasDelayedQuote(List<StockQuote> quotes) {
