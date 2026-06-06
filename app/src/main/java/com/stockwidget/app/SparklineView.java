@@ -13,12 +13,15 @@ public class SparklineView extends View {
 
     private double[] data;
     private int lineColor;
-    private final Paint linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint dotPaint  = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint linePaint  = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint fillPaint  = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint dotPaint   = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint innerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     public SparklineView(Context context) {
         super(context);
+        innerPaint.setColor(0xFFFFFFFF);
+        innerPaint.setStyle(Paint.Style.FILL);
     }
 
     public void setData(double[] data, int lineColor) {
@@ -111,10 +114,6 @@ public class SparklineView extends View {
         float lastX = xs[pts.length - 1];
         float lastY = ys[pts.length - 1];
         canvas.drawCircle(lastX, lastY, 4.5f, dotPaint);
-        // 흰 속 점
-        Paint inner = new Paint(Paint.ANTI_ALIAS_FLAG);
-        inner.setColor(0xFFFFFFFF);
-        inner.setStyle(Paint.Style.FILL);
-        canvas.drawCircle(lastX, lastY, 2f, inner);
+        canvas.drawCircle(lastX, lastY, 2f, innerPaint);
     }
 }

@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
     private static final int BG = Color.rgb(7, 12, 24);
@@ -31,7 +32,7 @@ public class MainActivity extends Activity {
     private LinearLayout indexSection;
     private TextView statusText;
     private final List<StockItem> stocks = new ArrayList<>();
-    private volatile boolean isRefreshing = false;
+    private final AtomicBoolean isRefreshing = new AtomicBoolean(false);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,20 +115,22 @@ public class MainActivity extends Activity {
     }
 
     private void refreshQuotes(boolean forceNetwork) {
-        if (isRefreshing) {
+        if (!isRefreshing.compareAndSet(false, true)) {
             return;
         }
 
         boolean marketOpen = MarketHours.isRegularMarketOpen();
         boolean afterClose = MarketHours.isAfterRegularMarketClose();
-        // 비장중에만 캐시 사용 (단, 강제 새로고침이거나 Yahoo 캐시면 네트워크 조회)
-        if (!forceNetwork && !marketOpen && !afterClose) {
+        boolean preMarket  = MarketHours.isPreMarketActive();
+        // 활성 세션(장전·장중·NXT)이 아닌 경우에만 캐시 사용
+        if (!forceNetwork && !marketOpen && !afterClose && !preMarket) {
             List<StockQuote> cached = StockRepository.loadQuoteCache(this, stocks);
             boolean allNaver = !cached.isEmpty() && !hasYahooQuote(cached);
             if (allNaver && cached.size() == stocks.size()) {
                 renderQuotes(cached);
                 statusText.setText(MarketHours.appStatusText());
                 statusText.setTextColor(MUTED);
+                isRefreshing.set(false);
                 new Thread(() -> {
                     List<MarketIndex> indices = NaverIndexClient.fetchIndices();
                     runOnUiThread(() -> renderIndices(indices));
@@ -137,7 +140,6 @@ public class MainActivity extends Activity {
             }
         }
 
-        isRefreshing = true;
         String marketLabel = marketOpen ? "장중" : MarketHours.statusLabel();
         statusText.setText(marketLabel + " · 조회 중...");
         statusText.setTextColor(ACCENT);
@@ -163,11 +165,13 @@ public class MainActivity extends Activity {
                     String updated = new SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(new Date());
                     boolean hasDelayed = hasDelayedQuote(finalQuotes);
                     boolean hasNxt = hasNxtQuote(finalQuotes);
+                    boolean nxtActive = MarketHours.isNxtMarketActive();
                     String suffix = marketOpen ? (hasDelayed ? "갱신 (Yahoo 15분 지연)" : "갱신")
+                            : nxtActive ? (hasNxt ? "갱신 (NXT 포함)" : "갱신")
                             : (hasNxt ? "마감 정보 (NXT 포함)" : "마감 정보");
                     statusText.setText(marketLabel + " · " + updated + " " + suffix);
                     statusText.setTextColor(MUTED);
-                    isRefreshing = false;
+                    isRefreshing.set(false);
                 });
                 WidgetUpdater.updateAll(this);
             } catch (Exception e) {
@@ -175,7 +179,7 @@ public class MainActivity extends Activity {
                     renderCachedOrPausedRows();
                     statusText.setText("조회 실패 · 저장된 정보 표시");
                     statusText.setTextColor(MUTED);
-                    isRefreshing = false;
+                    isRefreshing.set(false);
                 });
             }
         }).start();

@@ -18,7 +18,9 @@ public class UpdateScheduler {
             cancel(context);
             return;
         }
-        if (MarketHours.isRegularMarketOpen()) {
+        if (MarketHours.isPreMarketActive()
+                || MarketHours.isRegularMarketOpen()
+                || MarketHours.isNxtMarketActive()) {
             schedule(context, minutes);
             return;
         }

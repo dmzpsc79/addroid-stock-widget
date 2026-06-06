@@ -50,13 +50,15 @@ public class StockWidgetRemoteViewsService extends RemoteViewsService {
 
         @Override
         public RemoteViews getViewAt(int position) {
-            if (position < 0 || position >= getCount()) {
-                return null;
+            if (position < 0) return null;
+            List<StockQuote> snapQuotes = quotes;
+            List<StockItem> snapStocks = stocks;
+            if (!snapQuotes.isEmpty()) {
+                if (position >= snapQuotes.size()) return null;
+                return quoteRow(snapQuotes.get(position));
             }
-            if (!quotes.isEmpty()) {
-                return quoteRow(quotes.get(position));
-            }
-            return statusRow(stocks.get(position));
+            if (position >= snapStocks.size()) return null;
+            return statusRow(snapStocks.get(position));
         }
 
         @Override

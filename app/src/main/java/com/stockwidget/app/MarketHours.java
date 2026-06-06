@@ -9,35 +9,32 @@ import java.util.TimeZone;
 
 public class MarketHours {
     private static final TimeZone KOREA_TIME_ZONE = TimeZone.getTimeZone("Asia/Seoul");
-    private static final int OPEN_MINUTES = 9 * 60;
-    private static final int CLOSE_MINUTES = 15 * 60 + 30;
+    private static final int PRE_MARKET_OPEN_MINUTES = 8 * 60;       // 장전 시간외 시작 (08:00)
+    private static final int OPEN_MINUTES             = 9 * 60;       // 정규장 시작 (09:00)
+    private static final int CLOSE_MINUTES            = 15 * 60 + 30; // 정규장 종료 (15:30)
+    private static final int NXT_CLOSE_MINUTES        = 20 * 60;      // NXT 시간외 종료 (20:00)
 
-    // KRX 공휴일 (MMDD 형식, 매년 업데이트 필요)
-    // 2025~2026 기준 고정 공휴일 + 주요 대체 공휴일
+    // KRX 공휴일 목록
+    // MMDD: 매년 고정 공휴일 (신정·삼일절·어린이날·현충일·광복절·한글날·성탄절·연말)
+    // YYYYMMDD: 연도별 변동 공휴일 (설날·추석 등 음력 기반, 대체공휴일)
     private static final Set<String> HOLIDAYS = new HashSet<>(Arrays.asList(
-        // 2025
+        // 고정 연간 공휴일 (MMDD)
         "0101", // 신정
-        "0127", "0128", "0129", "0130", // 설날 연휴
         "0301", // 삼일절
         "0505", // 어린이날
-        "0506", // 어린이날 대체
-        "0603", // 현충일
+        "0606", // 현충일
         "0815", // 광복절
-        "1003", "1004", "1005", "1007", // 추석 연휴 + 개천절
+        "1003", // 개천절
         "1009", // 한글날
         "1225", // 성탄절
         "1231", // 연말 휴장
-        // 2026
-        "20260101",
+        // 2025 변동 공휴일 (YYYYMMDD)
+        "20250127", "20250128", "20250129", "20250130", // 설날 연휴
+        "20250506", // 어린이날 대체
+        "20251003", "20251004", "20251005", "20251007", // 추석 연휴 + 개천절 대체
+        // 2026 변동 공휴일 (YYYYMMDD)
         "20260216", "20260217", "20260218", "20260219", // 설날 연휴
-        "20260301",
-        "20260505",
-        "20260606",
-        "20260815",
-        "20260924", "20260925", "20260926", "20260927", // 추석 연휴
-        "20261009",
-        "20261225",
-        "20261231"
+        "20260924", "20260925", "20260926", "20260927"  // 추석 연휴
     ));
 
     public static boolean isRegularMarketOpen() {
@@ -54,17 +51,39 @@ public class MarketHours {
         return isTradingDay(now) && minutesOfDay(now) >= CLOSE_MINUTES;
     }
 
+    // 장전 시간외 활성 여부 (08:00~09:00)
+    public static boolean isPreMarketActive() {
+        Calendar now = nowInKorea();
+        if (!isTradingDay(now)) return false;
+        int minutes = minutesOfDay(now);
+        return minutes >= PRE_MARKET_OPEN_MINUTES && minutes < OPEN_MINUTES;
+    }
+
+    // NXT 시간외 거래 활성 여부 (15:30~20:00)
+    public static boolean isNxtMarketActive() {
+        Calendar now = nowInKorea();
+        if (!isTradingDay(now)) return false;
+        int minutes = minutesOfDay(now);
+        return minutes >= CLOSE_MINUTES && minutes < NXT_CLOSE_MINUTES;
+    }
+
     public static String statusLabel() {
         Calendar now = nowInKorea();
         if (!isTradingDay(now)) {
             return "휴장";
         }
         int minutes = minutesOfDay(now);
-        if (minutes < OPEN_MINUTES) {
+        if (minutes < PRE_MARKET_OPEN_MINUTES) {
             return "장 시작 전";
+        }
+        if (minutes < OPEN_MINUTES) {
+            return "장전";
         }
         if (minutes < CLOSE_MINUTES) {
             return "장중";
+        }
+        if (minutes < NXT_CLOSE_MINUTES) {
+            return "NXT";
         }
         return "장 종료";
     }
@@ -72,14 +91,20 @@ public class MarketHours {
     public static String detailText() {
         Calendar now = nowInKorea();
         if (!isTradingDay(now)) {
-            return isWeekday(now) ? "공휴일 휴장" : "평일 09:00 시작";
+            return isWeekday(now) ? "공휴일 휴장" : "주말 휴장";
         }
         int minutes = minutesOfDay(now);
+        if (minutes < PRE_MARKET_OPEN_MINUTES) {
+            return "08:00 장전 시작";
+        }
         if (minutes < OPEN_MINUTES) {
-            return "09:00 시작";
+            return "장전 시간외 08:00~09:00";
         }
         if (minutes < CLOSE_MINUTES) {
             return "정규장 09:00~15:30";
+        }
+        if (minutes < NXT_CLOSE_MINUTES) {
+            return "NXT 시간외 ~20:00";
         }
         return "마감 정보";
     }
@@ -88,25 +113,26 @@ public class MarketHours {
         return statusLabel() + " · " + detailText();
     }
 
+    // 다음 거래 세션(장전 08:00) 시작까지 남은 밀리초
     public static long millisUntilNextOpen() {
         Calendar now = nowInKorea();
-        Calendar nextOpen = (Calendar) now.clone();
-        nextOpen.set(Calendar.HOUR_OF_DAY, 9);
-        nextOpen.set(Calendar.MINUTE, 0);
-        nextOpen.set(Calendar.SECOND, 0);
-        nextOpen.set(Calendar.MILLISECOND, 0);
+        Calendar next = (Calendar) now.clone();
+        next.set(Calendar.HOUR_OF_DAY, 8);
+        next.set(Calendar.MINUTE, 0);
+        next.set(Calendar.SECOND, 0);
+        next.set(Calendar.MILLISECOND, 0);
 
-        if (!isTradingDay(nextOpen) || now.getTimeInMillis() >= nextOpen.getTimeInMillis()) {
+        if (!isTradingDay(next) || now.getTimeInMillis() >= next.getTimeInMillis()) {
             do {
-                nextOpen.add(Calendar.DAY_OF_MONTH, 1);
-                nextOpen.set(Calendar.HOUR_OF_DAY, 9);
-                nextOpen.set(Calendar.MINUTE, 0);
-                nextOpen.set(Calendar.SECOND, 0);
-                nextOpen.set(Calendar.MILLISECOND, 0);
-            } while (!isTradingDay(nextOpen));
+                next.add(Calendar.DAY_OF_MONTH, 1);
+                next.set(Calendar.HOUR_OF_DAY, 8);
+                next.set(Calendar.MINUTE, 0);
+                next.set(Calendar.SECOND, 0);
+                next.set(Calendar.MILLISECOND, 0);
+            } while (!isTradingDay(next));
         }
 
-        return Math.max(60_000L, nextOpen.getTimeInMillis() - now.getTimeInMillis());
+        return Math.max(60_000L, next.getTimeInMillis() - now.getTimeInMillis());
     }
 
     private static boolean isTradingDay(Calendar calendar) {
