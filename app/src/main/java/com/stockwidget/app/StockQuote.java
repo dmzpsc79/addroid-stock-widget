@@ -2,6 +2,7 @@ package com.stockwidget.app;
 
 public class StockQuote {
     public static final String SOURCE_NAVER = "NAVER";
+    public static final String SOURCE_NXT   = "NXT";
     public static final String SOURCE_YAHOO = "YAHOO";
     public static final String SOURCE_CACHE = "CACHE";
 

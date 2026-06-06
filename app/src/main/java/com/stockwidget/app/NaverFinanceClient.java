@@ -21,22 +21,23 @@ public class NaverFinanceClient {
             return quotes;
         }
 
-        StringBuilder query = new StringBuilder();
+        // 쿼리 형식: SERVICE_ITEM:005930,000660,... (단일 prefix + 쉼표 구분)
+        StringBuilder codes = new StringBuilder();
         for (int i = 0; i < items.size(); i++) {
-            if (i > 0) query.append("|");
-            query.append("SERVICE_ITEM:").append(items.get(i).code);
+            if (i > 0) codes.append(",");
+            codes.append(items.get(i).code);
         }
 
-        JSONObject naverResult = null;
+        JSONArray datasArray = null;
         try {
-            naverResult = fetchNaverResult(query.toString());
+            datasArray = fetchNaverDatas(codes.toString());
         } catch (Exception ignored) {
         }
 
         for (StockItem item : items) {
-            if (naverResult != null) {
+            if (datasArray != null) {
                 try {
-                    quotes.add(parseNaverQuote(item, naverResult));
+                    quotes.add(parseNaverQuote(item, datasArray));
                     continue;
                 } catch (Exception ignored) {
                 }
@@ -53,31 +54,72 @@ public class NaverFinanceClient {
         return false;
     }
 
-    private static JSONObject fetchNaverResult(String query) throws Exception {
-        String url = "https://polling.finance.naver.com/api/realtime?query=" + query;
+    // result.areas[].datas[] 배열을 모아 반환
+    private static JSONArray fetchNaverDatas(String codes) throws Exception {
+        String url = "https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:" + codes;
         JSONObject response = readJson(openConnection(url));
         if (!"success".equals(response.optString("resultCode", ""))) {
             throw new Exception("네이버 금융 응답 오류");
         }
-        return response.optJSONObject("result");
+        JSONObject result = response.optJSONObject("result");
+        if (result == null) throw new Exception("result 없음");
+
+        // areas 배열에서 datas를 모두 합친다
+        JSONArray areas = result.optJSONArray("areas");
+        if (areas == null) throw new Exception("areas 없음");
+
+        JSONArray all = new JSONArray();
+        for (int i = 0; i < areas.length(); i++) {
+            JSONObject area = areas.optJSONObject(i);
+            if (area == null) continue;
+            JSONArray datas = area.optJSONArray("datas");
+            if (datas == null) continue;
+            for (int j = 0; j < datas.length(); j++) {
+                JSONObject d = datas.optJSONObject(j);
+                if (d != null) all.put(d);
+            }
+        }
+        return all;
     }
 
-    private static StockQuote parseNaverQuote(StockItem item, JSONObject result) throws Exception {
-        JSONObject data = result.optJSONObject(item.code);
+    private static StockQuote parseNaverQuote(StockItem item, JSONArray datas) throws Exception {
+        JSONObject data = null;
+        for (int i = 0; i < datas.length(); i++) {
+            JSONObject d = datas.optJSONObject(i);
+            if (d != null && item.code.equals(d.optString("cd", ""))) {
+                data = d;
+                break;
+            }
+        }
         if (data == null) throw new Exception("종목 데이터 없음: " + item.code);
 
-        long price = parseLong(data.optString("closePrice", "0"));
-        long change = Math.abs(parseLong(data.optString("compareToPreviousClosePrice", "0")));
-        double changeRate = Math.abs(parseDouble(data.optString("fluctuationsRatio", "0")));
-        long high = parseLong(data.optString("highPrice", "0"));
-        long low = parseLong(data.optString("lowPrice", "0"));
-        long volume = parseLong(data.optString("accumulatedTradingVolume", "0"));
+        // 실제 필드명: nv=현재가, cv=전일비, cr=등락률, hv=고가, lv=저가, aq=거래량
+        long price = data.optLong("nv", 0);
+        long change = Math.abs(data.optLong("cv", 0));
+        double changeRate = Math.abs(data.optDouble("cr", 0));
+        long high = data.optLong("hv", 0);
+        long low = data.optLong("lv", 0);
+        long volume = data.optLong("aq", 0);
 
-        boolean up = true;
-        JSONObject priceInfo = data.optJSONObject("compareToPreviousPrice");
-        if (priceInfo != null) {
-            String code = priceInfo.optString("code", "2");
-            up = "1".equals(code) || "2".equals(code);
+        // rf: "1"=상한가, "2"=상승, "3"=보합, "4"=하한가, "5"=하락
+        String rf = data.optString("rf", "3");
+        boolean up = !"4".equals(rf) && !"5".equals(rf);
+
+        // NXT 시간외 거래 확인 (정규장 마감 후 NXT 가격이 있으면 우선 표시)
+        String ms = data.optString("ms", "CLOSE");
+        JSONObject nxt = data.optJSONObject("nxtOverMarketPriceInfo");
+        if (nxt != null && !"OPEN".equals(ms)) {
+            long nxtPrice = parseLong(nxt.optString("overPrice", "0").replace(",", ""));
+            if (nxtPrice > 0) {
+                long nxtChange = Math.abs(parseLong(
+                        nxt.optString("compareToPreviousClosePrice", "0").replace(",", "")));
+                double nxtRate = Math.abs(parseDouble(nxt.optString("fluctuationsRatio", "0")));
+                JSONObject nxtDir = nxt.optJSONObject("compareToPreviousPrice");
+                String nxtCode = nxtDir != null ? nxtDir.optString("code", "3") : "3";
+                boolean nxtUp = !"4".equals(nxtCode) && !"5".equals(nxtCode);
+                return new StockQuote(item, nxtPrice, nxtChange, nxtRate,
+                        high, low, volume, nxtUp, null, StockQuote.SOURCE_NXT);
+            }
         }
 
         return new StockQuote(item, price, change, changeRate, high, low, volume, up, null, StockQuote.SOURCE_NAVER);

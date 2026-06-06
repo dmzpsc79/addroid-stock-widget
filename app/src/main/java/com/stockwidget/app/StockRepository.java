@@ -142,7 +142,7 @@ public class StockRepository {
                 continue;
             }
             String source = obj.optString("source", "");
-            if (!"NAVER".equals(source) && !"KIS".equals(source) && !"YAHOO".equals(source)) {
+            if (!"NAVER".equals(source) && !"NXT".equals(source) && !"KIS".equals(source) && !"YAHOO".equals(source)) {
                 continue;
             }
 

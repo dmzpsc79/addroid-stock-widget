@@ -144,7 +144,9 @@ public class MainActivity extends Activity {
                     renderQuotes(finalQuotes);
                     String updated = new SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(new Date());
                     boolean hasDelayed = hasDelayedQuote(finalQuotes);
-                    String suffix = marketOpen ? (hasDelayed ? "갱신 (Yahoo 15분 지연)" : "갱신") : "마감 정보";
+                    boolean hasNxt = hasNxtQuote(finalQuotes);
+                    String suffix = marketOpen ? (hasDelayed ? "갱신 (Yahoo 15분 지연)" : "갱신")
+                            : (hasNxt ? "NXT 시간외" : "마감 정보");
                     statusText.setText(marketLabel + " · " + updated + " " + suffix);
                     statusText.setTextColor(MUTED);
                     isRefreshing = false;
@@ -164,6 +166,13 @@ public class MainActivity extends Activity {
     private boolean hasDelayedQuote(List<StockQuote> quotes) {
         for (StockQuote q : quotes) {
             if (q.isDelayed()) return true;
+        }
+        return false;
+    }
+
+    private boolean hasNxtQuote(List<StockQuote> quotes) {
+        for (StockQuote q : quotes) {
+            if (StockQuote.SOURCE_NXT.equals(q.source)) return true;
         }
         return false;
     }
