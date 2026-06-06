@@ -116,14 +116,14 @@ public class MainActivity extends Activity {
 
         isRefreshing = true;
         String marketLabel = marketOpen ? "장중" : MarketHours.statusLabel();
-        statusText.setText(marketLabel + " · 한투 조회 중...");
+        statusText.setText(marketLabel + " · 조회 중...");
         statusText.setTextColor(ACCENT);
         quoteList.removeAllViews();
 
         new Thread(() -> {
             try {
-                List<StockQuote> quotes = KisFinanceClient.fetchQuotes(this, new ArrayList<>(stocks));
-                if (KisFinanceClient.hasSuccessfulQuote(quotes)) {
+                List<StockQuote> quotes = NaverFinanceClient.fetchQuotes(new ArrayList<>(stocks));
+                if (NaverFinanceClient.hasSuccessfulQuote(quotes)) {
                     StockRepository.saveQuoteCache(this, quotes);
                 } else {
                     List<StockQuote> cached = StockRepository.loadQuoteCache(this, stocks);
@@ -135,7 +135,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     renderQuotes(finalQuotes);
                     String updated = new SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(new Date());
-                    String suffix = marketOpen ? "한투 갱신" : "한투 마감 정보";
+                    String suffix = marketOpen ? "갱신" : "마감 정보";
                     statusText.setText(marketLabel + " · " + updated + " " + suffix);
                     statusText.setTextColor(MUTED);
                     isRefreshing = false;

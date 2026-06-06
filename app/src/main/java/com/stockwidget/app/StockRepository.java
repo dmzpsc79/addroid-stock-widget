@@ -85,7 +85,7 @@ public class StockRepository {
                 obj.put("volume", quote.volume);
                 obj.put("up", quote.up);
                 obj.put("error", quote.error == null ? "" : quote.error);
-                obj.put("source", "KIS");
+                obj.put("source", "NAVER");
                 array.put(obj);
             } catch (Exception ignored) {
             }
@@ -125,7 +125,8 @@ public class StockRepository {
             if (obj == null || !stock.code.equals(obj.optString("code", ""))) {
                 continue;
             }
-            if (!"KIS".equals(obj.optString("source", ""))) {
+            String source = obj.optString("source", "");
+            if (!"NAVER".equals(source) && !"KIS".equals(source)) {
                 continue;
             }
 
