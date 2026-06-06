@@ -84,7 +84,7 @@ public class MainActivity extends Activity {
         iconBar.setGravity(Gravity.CENTER_VERTICAL);
 
         TextView refreshIcon = iconButton("⟳", "주가 새로고침");
-        refreshIcon.setOnClickListener(v -> refreshQuotes());
+        refreshIcon.setOnClickListener(v -> refreshQuotes(true));
         iconBar.addView(refreshIcon);
 
         TextView settingsIcon = iconButton("⚙", "설정");
@@ -105,15 +105,21 @@ public class MainActivity extends Activity {
     }
 
     private void refreshQuotes() {
+        refreshQuotes(false);
+    }
+
+    private void refreshQuotes(boolean forceNetwork) {
         if (isRefreshing) {
             return;
         }
 
         boolean marketOpen = MarketHours.isRegularMarketOpen();
         boolean afterClose = MarketHours.isAfterRegularMarketClose();
-        if (!marketOpen && !afterClose) {
+        // 비장중에만 캐시 사용 (단, 강제 새로고침이거나 Yahoo 캐시면 네트워크 조회)
+        if (!forceNetwork && !marketOpen && !afterClose) {
             List<StockQuote> cached = StockRepository.loadQuoteCache(this, stocks);
-            if (!cached.isEmpty() && cached.size() == stocks.size()) {
+            boolean allNaver = !cached.isEmpty() && !hasYahooQuote(cached);
+            if (allNaver && cached.size() == stocks.size()) {
                 renderQuotes(cached);
                 statusText.setText(MarketHours.appStatusText());
                 statusText.setTextColor(MUTED);
@@ -173,6 +179,13 @@ public class MainActivity extends Activity {
     private boolean hasNxtQuote(List<StockQuote> quotes) {
         for (StockQuote q : quotes) {
             if (StockQuote.SOURCE_NXT.equals(q.source)) return true;
+        }
+        return false;
+    }
+
+    private boolean hasYahooQuote(List<StockQuote> quotes) {
+        for (StockQuote q : quotes) {
+            if (StockQuote.SOURCE_YAHOO.equals(q.source)) return true;
         }
         return false;
     }
