@@ -128,7 +128,11 @@ public class MainActivity extends Activity {
                 renderQuotes(cached);
                 statusText.setText(MarketHours.appStatusText());
                 statusText.setTextColor(MUTED);
-                new Thread(() -> WidgetUpdater.updateAll(this)).start();
+                new Thread(() -> {
+                    List<MarketIndex> indices = NaverIndexClient.fetchIndices();
+                    runOnUiThread(() -> renderIndices(indices));
+                    WidgetUpdater.updateAll(this);
+                }).start();
                 return;
             }
         }
