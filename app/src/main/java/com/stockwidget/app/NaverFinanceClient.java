@@ -155,7 +155,6 @@ public class NaverFinanceClient {
         conn.setRequestMethod("GET");
         conn.setConnectTimeout(10_000);
         conn.setReadTimeout(10_000);
-        conn.setRequestProperty("Accept", "application/json");
         conn.setRequestProperty("User-Agent", "Mozilla/5.0");
         return conn;
     }
