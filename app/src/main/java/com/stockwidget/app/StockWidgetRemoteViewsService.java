@@ -66,7 +66,12 @@ public class StockWidgetRemoteViewsService extends RemoteViewsService {
 
         @Override
         public int getViewTypeCount() {
-            return 1;
+            return 2;
+        }
+
+        @Override
+        public int getItemViewType(int position) {
+            return quotes.isEmpty() ? 1 : 0;
         }
 
         @Override

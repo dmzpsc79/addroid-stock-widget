@@ -30,7 +30,7 @@ public class MainActivity extends Activity {
     private LinearLayout quoteList;
     private TextView statusText;
     private final List<StockItem> stocks = new ArrayList<>();
-    private boolean isRefreshing = false;
+    private volatile boolean isRefreshing = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
