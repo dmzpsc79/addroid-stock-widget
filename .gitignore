@@ -20,9 +20,10 @@ build/
 # Build tools cache
 .build-tools/
 
-# Keystore files
+# Keystore files — 절대 커밋하지 마세요
 *.jks
 *.keystore
+keystore.properties
 
 # Google services
 google-services.json
