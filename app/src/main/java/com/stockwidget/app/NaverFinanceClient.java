@@ -105,24 +105,19 @@ public class NaverFinanceClient {
         String rf = data.optString("rf", "3");
         boolean up = !"4".equals(rf) && !"5".equals(rf);
 
-        // NXT 시간외 거래 확인 (정규장 마감 후 NXT 가격이 있으면 우선 표시)
+        // NXT 시간외 가격 조회 (정규장 종가와 다를 때만 저장)
+        long nxtPrice = 0;
         String ms = data.optString("ms", "CLOSE");
         JSONObject nxt = data.optJSONObject("nxtOverMarketPriceInfo");
         if (nxt != null && !"OPEN".equals(ms)) {
-            long nxtPrice = parseLong(nxt.optString("overPrice", "0").replace(",", ""));
-            if (nxtPrice > 0) {
-                long nxtChange = Math.abs(parseLong(
-                        nxt.optString("compareToPreviousClosePrice", "0").replace(",", "")));
-                double nxtRate = Math.abs(parseDouble(nxt.optString("fluctuationsRatio", "0")));
-                JSONObject nxtDir = nxt.optJSONObject("compareToPreviousPrice");
-                String nxtCode = nxtDir != null ? nxtDir.optString("code", "3") : "3";
-                boolean nxtUp = !"4".equals(nxtCode) && !"5".equals(nxtCode);
-                return new StockQuote(item, nxtPrice, nxtChange, nxtRate,
-                        high, low, volume, nxtUp, null, StockQuote.SOURCE_NXT);
+            long np = parseLong(nxt.optString("overPrice", "0").replace(",", ""));
+            if (np > 0 && np != price) {
+                nxtPrice = np;
             }
         }
 
-        return new StockQuote(item, price, change, changeRate, high, low, volume, up, null, StockQuote.SOURCE_NAVER);
+        String source = nxtPrice > 0 ? StockQuote.SOURCE_NXT : StockQuote.SOURCE_NAVER;
+        return new StockQuote(item, price, change, changeRate, high, low, volume, up, null, source, nxtPrice);
     }
 
     private static StockQuote fetchYahooQuote(StockItem item) {

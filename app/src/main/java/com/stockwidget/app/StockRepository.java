@@ -88,6 +88,7 @@ public class StockRepository {
                 obj.put("up", quote.up);
                 obj.put("error", quote.error == null ? "" : quote.error);
                 obj.put("source", quote.source != null ? quote.source : StockQuote.SOURCE_NAVER);
+                obj.put("nxtPrice", quote.nxtPrice);
                 array.put(obj);
             } catch (Exception ignored) {
             }
@@ -157,7 +158,8 @@ public class StockRepository {
                     obj.optLong("volume", 0),
                     obj.optBoolean("up", true),
                     error.isEmpty() ? null : error,
-                    source.isEmpty() ? StockQuote.SOURCE_NAVER : source
+                    source.isEmpty() ? StockQuote.SOURCE_NAVER : source,
+                    obj.optLong("nxtPrice", 0)
             );
         }
         return null;

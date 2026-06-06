@@ -146,7 +146,7 @@ public class MainActivity extends Activity {
                     boolean hasDelayed = hasDelayedQuote(finalQuotes);
                     boolean hasNxt = hasNxtQuote(finalQuotes);
                     String suffix = marketOpen ? (hasDelayed ? "갱신 (Yahoo 15분 지연)" : "갱신")
-                            : (hasNxt ? "NXT 시간외" : "마감 정보");
+                            : (hasNxt ? "마감 정보 (NXT 포함)" : "마감 정보");
                     statusText.setText(marketLabel + " · " + updated + " " + suffix);
                     statusText.setTextColor(MUTED);
                     isRefreshing = false;
@@ -295,6 +295,10 @@ public class MainActivity extends Activity {
                 addInlineInfo(bottom, "고", StockQuoteFormatter.formatOptionalNumber(quote.high), RED);
                 addInlineInfo(bottom, "저", StockQuoteFormatter.formatOptionalNumber(quote.low), BLUE);
                 addInlineInfo(bottom, "거래량", StockQuoteFormatter.formatOptionalNumber(quote.volume), MUTED);
+                if (quote.nxtPrice > 0) {
+                    TextView nxtLabel = text("  NXT " + StockQuoteFormatter.formatPrice(quote.nxtPrice), 12, Color.rgb(56, 189, 248), false);
+                    bottom.addView(nxtLabel);
+                }
                 row.addView(bottom);
             }
 
