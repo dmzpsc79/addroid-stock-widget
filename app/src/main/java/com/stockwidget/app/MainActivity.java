@@ -63,8 +63,16 @@ public class MainActivity extends Activity {
         headerTop.setGravity(Gravity.CENTER_VERTICAL);
 
         LinearLayout titleBox = verticalBox();
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.BOTTOM);
         TextView title = text("주식 위젯", 22, TEXT, true);
-        titleBox.addView(title);
+        titleRow.addView(title);
+        String versionName = getVersionName();
+        TextView version = text("  " + versionName, 11, MUTED, false);
+        version.setPadding(0, 0, 0, dp(3));
+        titleRow.addView(version);
+        titleBox.addView(titleRow);
 
         statusText = text("대기 중", 12, MUTED, false);
         statusText.setPadding(0, dp(3), 0, 0);
@@ -363,6 +371,14 @@ public class MainActivity extends Activity {
         );
         params.setMargins(0, dp(6), 0, dp(6));
         parent.addView(child, params);
+    }
+
+    private String getVersionName() {
+        try {
+            return "v" + getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private int dp(int value) {
