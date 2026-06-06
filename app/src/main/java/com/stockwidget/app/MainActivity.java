@@ -2,14 +2,12 @@ package com.stockwidget.app;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -185,64 +183,59 @@ public class MainActivity extends Activity {
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(0, dp(2), 0, dp(6));
+        row.setPadding(0, dp(2), 0, dp(8));
 
         for (int i = 0; i < indices.size(); i++) {
             MarketIndex idx = indices.get(i);
             int color = idx.up ? RED : BLUE;
+            int cardColor = Color.rgb(15, 23, 42);   // 앱 배경보다 살짝 밝은 카드
 
             LinearLayout card = new LinearLayout(this);
             card.setOrientation(LinearLayout.VERTICAL);
-            card.setPadding(dp(10), dp(8), dp(10), dp(8));
+            card.setPadding(dp(12), dp(10), dp(12), dp(10));
             GradientDrawable cardBg = new GradientDrawable();
-            cardBg.setColor(Color.rgb(17, 24, 39));
-            cardBg.setCornerRadius(dp(10));
-            cardBg.setStroke(dp(1), Color.rgb(30, 41, 59));
+            cardBg.setColor(cardColor);
+            cardBg.setCornerRadius(dp(12));
+            cardBg.setStroke(dp(1), idx.up
+                    ? Color.argb(60, 248, 113, 113)
+                    : Color.argb(60, 96, 165, 250));
             card.setBackground(cardBg);
 
-            // 지수명 + 방향
+            // 지수명 + 방향 화살표
             LinearLayout nameRow = new LinearLayout(this);
             nameRow.setOrientation(LinearLayout.HORIZONTAL);
             nameRow.setGravity(Gravity.CENTER_VERTICAL);
             TextView nameView = text(idx.name, 12, MUTED, false);
             nameRow.addView(nameView);
-            TextView arrowView = text(idx.up ? " ▲" : " ▼", 11, color, true);
+            TextView arrowView = text(idx.up ? "  ▲" : "  ▼", 11, color, true);
             nameRow.addView(arrowView);
             card.addView(nameRow);
 
-            // 지수값
-            TextView priceView = text(formatIndex(idx.price), 18, TEXT, true);
+            // 지수값 (크게)
+            TextView priceView = text(formatIndex(idx.price), 20, TEXT, true);
+            priceView.setPadding(0, dp(2), 0, 0);
             card.addView(priceView);
 
-            // 등락
+            // 등락폭 + 등락률
             String sign = idx.up ? "+" : "-";
             TextView changeView = text(
                     sign + formatIndex(idx.change) + "  " + sign + String.format("%.2f", idx.changeRate) + "%",
                     12, color, false);
+            changeView.setPadding(0, dp(1), 0, dp(6));
             card.addView(changeView);
 
-            // 차트 이미지
-            if (!idx.chartUrl.isEmpty()) {
-                ImageView chartImg = new ImageView(this);
-                chartImg.setScaleType(ImageView.ScaleType.FIT_XY);
-                LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, dp(44));
-                imgParams.setMargins(0, dp(6), 0, 0);
-                card.addView(chartImg, imgParams);
-
-                // 백그라운드에서 이미지 로드
-                String chartUrl = idx.chartUrl;
-                new Thread(() -> {
-                    Bitmap bmp = NaverIndexClient.loadChart(chartUrl);
-                    if (bmp != null) {
-                        runOnUiThread(() -> chartImg.setImageBitmap(bmp));
-                    }
-                }).start();
+            // 스파크라인
+            if (idx.sparkData != null && idx.sparkData.length >= 2) {
+                SparklineView spark = new SparklineView(this);
+                spark.setData(idx.sparkData, color);
+                LinearLayout.LayoutParams sparkParams = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, dp(52));
+                card.addView(spark, sparkParams);
             }
 
             LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-            if (i < indices.size() - 1) cardParams.setMargins(0, 0, dp(6), 0);
+            if (i < indices.size() - 1) cardParams.setMargins(0, 0, dp(8), 0);
             row.addView(card, cardParams);
         }
         indexSection.addView(row);
@@ -250,10 +243,10 @@ public class MainActivity extends Activity {
         // 구분선
         View divider = new View(this);
         divider.setBackgroundColor(LINE);
-        LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams divParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(1));
-        dp.setMargins(0, 0, 0, dp(6));
-        indexSection.addView(divider, dp);
+        divParams.setMargins(0, dp(4), 0, dp(8));
+        indexSection.addView(divider, divParams);
     }
 
     private String formatIndex(double value) {

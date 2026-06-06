@@ -1,9 +1,7 @@
-// 네이버 모바일 API로 코스피·코스닥 지수를 조회하는 클라이언트
+// 네이버 모바일 API로 코스피·코스닥 지수 + 스파크라인 데이터를 조회하는 클라이언트
 package com.stockwidget.app;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -32,54 +30,54 @@ public class NaverIndexClient {
         return result;
     }
 
-    public static Bitmap loadChart(String url) {
+    private static MarketIndex fetchOne(String code, String name) throws Exception {
+        // 기본 정보
+        String basicUrl = "https://m.stock.naver.com/api/index/" + code + "/basic";
+        JSONObject j = new JSONObject(fetchString(basicUrl));
+
+        double price = parseDouble(j.optString("closePrice", "0"));
+        double change = Math.abs(parseDouble(j.optString("compareToPreviousClosePrice", "0")));
+        double changeRate = Math.abs(parseDouble(j.optString("fluctuationsRatio", "0")));
+        JSONObject dir = j.optJSONObject("compareToPreviousPrice");
+        String dirCode = dir != null ? dir.optString("code", "3") : "3";
+        boolean up = !"4".equals(dirCode) && !"5".equals(dirCode);
+
+        // 스파크라인 데이터 (최근 20거래일 종가)
+        double[] sparkData = fetchSparkData(code);
+
+        return new MarketIndex(code, name, price, change, changeRate, up, sparkData);
+    }
+
+    private static double[] fetchSparkData(String code) {
         try {
-            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-            conn.setConnectTimeout(8_000);
-            conn.setReadTimeout(8_000);
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
-            conn.setRequestProperty("Referer", "https://m.stock.naver.com");
-            int status = conn.getResponseCode();
-            if (status != 200) return null;
-            try (InputStream is = conn.getInputStream()) {
-                return BitmapFactory.decodeStream(is);
-            } finally {
-                conn.disconnect();
+            String url = "https://m.stock.naver.com/api/index/" + code + "/price?range=3M";
+            String body = fetchString(url);
+            JSONArray arr = new JSONArray(body);
+            int count = Math.min(arr.length(), 20);
+            double[] data = new double[count];
+            for (int i = 0; i < count; i++) {
+                JSONObject item = arr.getJSONObject(i);
+                data[i] = parseDouble(item.optString("closePrice", "0"));
             }
+            return data;
         } catch (Exception e) {
-            return null;
+            return new double[0];
         }
     }
 
-    private static MarketIndex fetchOne(String code, String name) throws Exception {
-        String url = "https://m.stock.naver.com/api/index/" + code + "/basic";
-        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+    private static String fetchString(String urlStr) throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         conn.setConnectTimeout(10_000);
         conn.setReadTimeout(10_000);
         conn.setRequestProperty("User-Agent", "Mozilla/5.0");
         conn.setRequestProperty("Referer", "https://m.stock.naver.com");
-
         int status = conn.getResponseCode();
         InputStream stream = status >= 200 && status < 300
                 ? conn.getInputStream() : conn.getErrorStream();
         String body = readAll(stream);
         conn.disconnect();
-        if (status < 200 || status >= 300) return null;
-
-        JSONObject j = new JSONObject(body);
-        double price = parseDouble(j.optString("closePrice", "0"));
-        double change = Math.abs(parseDouble(j.optString("compareToPreviousClosePrice", "0")));
-        double changeRate = Math.abs(parseDouble(j.optString("fluctuationsRatio", "0")));
-
-        JSONObject dir = j.optJSONObject("compareToPreviousPrice");
-        String dirCode = dir != null ? dir.optString("code", "3") : "3";
-        boolean up = !"4".equals(dirCode) && !"5".equals(dirCode);
-
-        // 미니 차트 이미지 URL (당일 차트)
-        JSONObject imageCharts = j.optJSONObject("imageCharts");
-        String chartUrl = imageCharts != null ? imageCharts.optString("day_up", "") : "";
-
-        return new MarketIndex(code, name, price, change, changeRate, up, chartUrl);
+        if (status < 200 || status >= 300) throw new Exception("HTTP " + status);
+        return body;
     }
 
     private static String readAll(InputStream stream) throws Exception {
