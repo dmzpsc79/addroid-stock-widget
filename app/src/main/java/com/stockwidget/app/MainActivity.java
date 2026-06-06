@@ -113,7 +113,7 @@ public class MainActivity extends Activity {
         boolean afterClose = MarketHours.isAfterRegularMarketClose();
         if (!marketOpen && !afterClose) {
             List<StockQuote> cached = StockRepository.loadQuoteCache(this, stocks);
-            if (!cached.isEmpty()) {
+            if (!cached.isEmpty() && cached.size() == stocks.size()) {
                 renderQuotes(cached);
                 statusText.setText(MarketHours.appStatusText());
                 statusText.setTextColor(MUTED);
