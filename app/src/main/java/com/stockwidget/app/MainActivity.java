@@ -12,6 +12,11 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdSize;
+import com.google.android.gms.ads.AdView;
+import com.google.android.gms.ads.MobileAds;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -28,9 +33,13 @@ public class MainActivity extends Activity {
     private static final int BLUE = Color.rgb(96, 165, 250);
     private static final int LINE = Color.rgb(30, 41, 59);
 
+    // 배너 광고 Unit ID (테스트용 - 실제 배포 시 본인 Ad Unit ID로 교체)
+    private static final String BANNER_AD_UNIT_ID = "ca-app-pub-9619298493624549/7163597734";
+
     private LinearLayout quoteList;
     private LinearLayout indexSection;
     private TextView statusText;
+    private AdView adView;
     private final List<StockItem> stocks = new ArrayList<>();
     private final AtomicBoolean isRefreshing = new AtomicBoolean(false);
 
@@ -38,20 +47,46 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         buildUi();
+        MobileAds.initialize(this, status -> {
+            AdRequest adRequest = new AdRequest.Builder().build();
+            adView.loadAd(adRequest);
+        });
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        if (adView != null) adView.resume();
         stocks.clear();
         stocks.addAll(StockRepository.loadStocks(this));
         UpdateScheduler.applySettings(getApplicationContext());
         refreshQuotes();
     }
 
+    @Override
+    protected void onPause() {
+        if (adView != null) adView.pause();
+        super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (adView != null) adView.destroy();
+        super.onDestroy();
+    }
+
     private void buildUi() {
+        // 최외곽: 세로 LinearLayout (스크롤 영역 + 하단 고정 광고 배너)
+        LinearLayout outerContainer = new LinearLayout(this);
+        outerContainer.setOrientation(LinearLayout.VERTICAL);
+        outerContainer.setBackgroundColor(BG);
+
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
+        outerContainer.addView(scroll, scrollParams);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(12), dp(10), dp(12), dp(10));
@@ -107,7 +142,16 @@ public class MainActivity extends Activity {
         quoteList = verticalBox();
         root.addView(quoteList);
 
-        setContentView(scroll);
+        // 하단 광고 배너 (화면 하단 고정)
+        adView = new AdView(this);
+        adView.setAdSize(AdSize.BANNER);
+        adView.setAdUnitId(BANNER_AD_UNIT_ID);
+        LinearLayout.LayoutParams adParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        outerContainer.addView(adView, adParams);
+
+        setContentView(outerContainer);
     }
 
     private void refreshQuotes() {
